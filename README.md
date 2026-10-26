@@ -1,0 +1,2 @@
+# quickqr
+quickqr
