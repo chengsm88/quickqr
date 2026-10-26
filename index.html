@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickQR - 網址縮短與 Wi-Fi QR Code 生成器</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @media print {
+      body * {
+        visibility: hidden !important;
+      }
+      #print-area, #print-area * {
+        visibility: visible !important;
+      }
+      #print-area {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 20px !important;
+        background: white !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- 頂部導航列 -->
+  <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-100">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+          </svg>
+        </div>
+        <div>
+          <span class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">QuickQR</span>
+          <span class="hidden sm:inline-block text-xs font-semibold px-2 py-0.5 ml-1.5 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-200/60">極速短網址 &amp; Wi-Fi</span>
+        </div>
+      </div>
+
+      <!-- 導航標籤頁切換 -->
+      <nav class="flex items-center p-1 bg-slate-100 rounded-xl space-x-1 border border-slate-200/70 text-sm font-medium">
+        <button id="nav-btn-url" class="nav-tab px-3.5 py-1.5 rounded-lg text-indigo-700 bg-white shadow-sm flex items-center space-x-1.5 transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+          </svg>
+          <span>縮短網址</span>
+        </button>
+        <button id="nav-btn-wifi" class="nav-tab px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 flex items-center space-x-1.5 transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"></path>
+          </svg>
+          <span>Wi-Fi 轉碼</span>
+        </button>
+        <button id="nav-btn-history" class="nav-tab px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 flex items-center space-x-1.5 transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span class="hidden xs:inline">歷史記錄</span>
+          <span id="history-badge" class="ml-1 text-xs px-1.5 py-0.2 bg-slate-200 text-slate-700 rounded-full font-bold">0</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 主體容器 -->
+  <main class="flex-grow max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+
+    <!-- ================= 模組 1: 網址縮短與 QR Code ================= -->
+    <section id="section-url" class="block space-y-6">
+      <div class="text-center max-w-2xl mx-auto space-y-2">
+        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+          網址縮短與二維碼生成
+        </h1>
+        <p class="text-slate-500 text-sm sm:text-base">
+          將冗長的網頁連結一鍵縮短，並即刻生成高解析度 QR Code，方便分享與手機快速掃描。
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div class="lg:col-span-7 bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-5">
+          <div>
+            <label for="url-input" class="block text-sm font-semibold text-slate-700 mb-1.5">
+              目標原始網址 <span class="text-rose-500">*</span>
+            </label>
+            <div class="relative">
+              <input type="url" id="url-input" placeholder="https://example.com/very-long-path-name..."
+                class="w-full pl-10 pr-24 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition text-sm">
+              <div class="absolute left-3.5 top-3.5 text-slate-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                </svg>
+              </div>
+              <div class="absolute right-2 top-2 flex items-center space-x-1">
+                <button id="btn-paste-url" type="button" class="px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="從剪貼簿貼上">貼上</button>
+                <button id="btn-clear-url" type="button" class="px-2 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition" title="清空輸入">清空</button>
+              </div>
+            </div>
+            <p id="url-error" class="hidden text-xs text-rose-500 mt-1.5 font-medium"></p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+            <div>
+              <label for="url-alias" class="block text-xs font-semibold text-slate-700 mb-1">
+                自訂短網址代碼 (可選，最少 5 字元)
+              </label>
+              <div class="flex rounded-xl border border-slate-300 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-600">
+                <span id="alias-domain-prefix" class="bg-slate-100 px-2.5 py-2 text-xs font-medium text-slate-500 border-r border-slate-200 select-none">is.gd/</span>
+                <input type="text" id="url-alias" placeholder="留空則自動隨機產生" class="w-full px-2.5 py-2 text-xs focus:outline-none">
+              </div>
+            </div>
+            <div>
+              <label for="shortener-service" class="block text-xs font-semibold text-slate-700 mb-1">
+                縮短網址服務 (全支援 HTTPS 安全連線)
+              </label>
+              <select id="shortener-service" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 bg-white">
+                <option value="isgd" selected>🔒 is.gd 真實短網址 (推薦・免註冊)</option>
+                <option value="vgd">🔒 v.gd 真實短網址 (免註冊)</option>
+                <option value="tinyurl">🌐 TinyURL 公開短鏈</option>
+                <option value="direct">⚡ 原網址直接轉 QR Code</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="border-t border-slate-100 pt-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">二維碼自訂設定</span>
+              <span class="text-xs text-slate-400">實時即時更新</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div>
+                <label for="qr-url-color" class="block text-xs text-slate-600 mb-1 font-medium">前景色</label>
+                <div class="flex items-center space-x-2">
+                  <input type="color" id="qr-url-color" value="#0f172a" class="w-8 h-8 rounded-lg border border-slate-200 cursor-pointer p-0.5">
+                  <span id="qr-url-color-label" class="text-xs font-mono text-slate-600">#0f172a</span>
+                </div>
+              </div>
+              <div>
+                <label for="qr-url-bg" class="block text-xs text-slate-600 mb-1 font-medium">背景色</label>
+                <div class="flex items-center space-x-2">
+                  <input type="color" id="qr-url-bg" value="#ffffff" class="w-8 h-8 rounded-lg border border-slate-200 cursor-pointer p-0.5">
+                  <span id="qr-url-bg-label" class="text-xs font-mono text-slate-600">#ffffff</span>
+                </div>
+              </div>
+              <div>
+                <label for="qr-target-type" class="block text-xs text-slate-600 mb-1 font-medium">QR 編碼對象</label>
+                <select id="qr-target-type" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs focus:outline-none">
+                  <option value="short">短網址 (點陣簡化)</option>
+                  <option value="original">原始完整網址</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-600 mb-1 font-medium">中心 Logo</label>
+                <input type="file" id="url-logo-input" accept="image/*" class="w-full text-[10px] file:mr-1 file:py-1 file:px-2 file:rounded-lg file:border-0 file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+              </div>
+            </div>
+          </div>
+
+          <button id="btn-shorten-generate" type="button" class="w-full py-3.5 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold rounded-xl shadow-md shadow-indigo-100 flex items-center justify-center space-x-2 transition-all transform active:scale-[0.99]">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            <span>一鍵縮短網址並生成 QR Code</span>
+          </button>
+        </div>
+
+        <div class="lg:col-span-5 space-y-4">
+          <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm flex flex-col items-center text-center">
+            <div class="flex items-center justify-between w-full mb-3">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">即時 QR Code 預覽</span>
+              <span id="qr-url-scan-badge" class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium">可立即掃描</span>
+            </div>
+            <div class="relative group p-4 bg-white rounded-2xl border border-slate-100 shadow-inner flex items-center justify-center min-h-[240px] w-full max-w-[260px]">
+              <div id="url-qrcode-container" class="transition-all duration-300 flex items-center justify-center"></div>
+              <div id="url-qrcode-placeholder" class="text-slate-400 flex flex-col items-center justify-center py-10 space-y-2">
+                <svg class="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+                </svg>
+                <p class="text-xs">輸入網址後自動生成二維碼</p>
+              </div>
+            </div>
+
+            <div id="url-result-box" class="w-full mt-4 text-left hidden space-y-3">
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                <div class="flex items-center justify-between text-xs text-slate-500 mb-1">
+                  <span>縮短後的短網址：</span>
+                  <span id="url-savings-tag" class="text-emerald-600 font-semibold">節省 65% 長度</span>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                  <a id="shortened-link-display" href="#" target="_blank" class="text-sm font-bold text-indigo-600 hover:text-indigo-800 truncate underline decoration-indigo-300">
+                    https://is.gd/
+                  </a>
+                  <button id="btn-copy-short-url" type="button" class="shrink-0 px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-medium flex items-center space-x-1 shadow-sm">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                    <span>複製</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <button id="btn-download-url-qr" type="button" class="w-full py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                  </svg>
+                  <span>下載 PNG 圖片</span>
+                </button>
+                <button id="btn-test-short-url" type="button" class="w-full py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition border border-indigo-200">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                  </svg>
+                  <span>開啟測試跳轉</span>
+                </button>
+              </div>
+              <button id="btn-share-url-qr" type="button" class="w-full py-2 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+                </svg>
+                <span>傳送此短網址與 QR 圖片給朋友</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 模組 2: Wi-Fi 轉 QR Code ================= -->
+    <section id="section-wifi" class="hidden space-y-6">
+      <div class="text-center max-w-2xl mx-auto space-y-2">
+        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+          Wi-Fi 連線 QR Code 生成器
+        </h1>
+        <p class="text-slate-500 text-sm sm:text-base">
+          免手動輸入密碼！手機相機掃描二維碼即可一鍵連線 Wi-Fi。支援精美立牌卡片直接列印，適合咖啡廳、辦公室或家用訪客。
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div class="lg:col-span-6 bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-5">
+          <div>
+            <label for="wifi-ssid" class="block text-sm font-semibold text-slate-700 mb-1.5">
+              Wi-Fi 網絡名稱 (SSID) <span class="text-rose-500">*</span>
+            </label>
+            <div class="relative">
+              <input type="text" id="wifi-ssid" placeholder="例如：Cafe_Guest_5G 或 Home_WiFi"
+                class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-sm">
+              <div class="absolute left-3.5 top-3.5 text-slate-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"></path>
+                </svg>
+              </div>
+            </div>
+            <p id="wifi-ssid-error" class="hidden text-xs text-rose-500 mt-1.5 font-medium"></p>
+          </div>
+
+          <div>
+            <label for="wifi-auth" class="block text-sm font-semibold text-slate-700 mb-1.5">
+              加密類型 (安全性)
+            </label>
+            <div class="grid grid-cols-3 gap-2">
+              <label class="cursor-pointer border border-slate-200 rounded-xl p-2.5 flex items-center justify-center space-x-2 text-xs font-medium hover:border-indigo-400 has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50/50 has-[:checked]:text-indigo-700 transition">
+                <input type="radio" name="wifi-auth-type" value="WPA" checked class="text-indigo-600 focus:ring-indigo-500">
+                <span>WPA/WPA2/WPA3</span>
+              </label>
+              <label class="cursor-pointer border border-slate-200 rounded-xl p-2.5 flex items-center justify-center space-x-2 text-xs font-medium hover:border-indigo-400 has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50/50 has-[:checked]:text-indigo-700 transition">
+                <input type="radio" name="wifi-auth-type" value="WEP" class="text-indigo-600 focus:ring-indigo-500">
+                <span>WEP</span>
+              </label>
+              <label class="cursor-pointer border border-slate-200 rounded-xl p-2.5 flex items-center justify-center space-x-2 text-xs font-medium hover:border-indigo-400 has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50/50 has-[:checked]:text-indigo-700 transition">
+                <input type="radio" name="wifi-auth-type" value="nopass" class="text-indigo-600 focus:ring-indigo-500">
+                <span>無密碼</span>
+              </label>
+            </div>
+          </div>
+
+          <div id="wifi-password-group">
+            <label for="wifi-password" class="block text-sm font-semibold text-slate-700 mb-1.5">
+              Wi-Fi 密碼
+            </label>
+            <div class="relative">
+              <input type="password" id="wifi-password" placeholder="請輸入 Wi-Fi 連線密碼"
+                class="w-full pl-10 pr-12 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-sm">
+              <div class="absolute left-3.5 top-3.5 text-slate-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+              </div>
+              <button id="btn-toggle-password" type="button" class="absolute right-3 top-3 text-slate-400 hover:text-slate-600 p-1" title="顯示/隱藏密碼">
+                <svg id="eye-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200/70">
+            <div>
+              <span class="text-xs font-semibold text-slate-700 block">隱藏 SSID (Hidden Network)</span>
+              <span class="text-xs text-slate-500">若此網絡未對外公開廣播 SSID，請開啟此項</span>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="wifi-hidden" class="sr-only peer">
+              <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+            </label>
+          </div>
+
+          <div class="border-t border-slate-100 pt-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">二維碼自訂設定</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label for="wifi-qr-color" class="block text-xs text-slate-600 mb-1 font-medium">前景色</label>
+                <div class="flex items-center space-x-2">
+                  <input type="color" id="wifi-qr-color" value="#0f172a" class="w-full h-8 rounded-lg border border-slate-200 cursor-pointer p-0.5">
+                </div>
+              </div>
+              <div>
+                <label for="wifi-qr-bg" class="block text-xs text-slate-600 mb-1 font-medium">背景色</label>
+                <div class="flex items-center space-x-2">
+                  <input type="color" id="wifi-qr-bg" value="#ffffff" class="w-full h-8 rounded-lg border border-slate-200 cursor-pointer p-0.5">
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-600 mb-1 font-medium">中心 Logo</label>
+                <input type="file" id="wifi-logo-input" accept="image/*" class="w-full text-[10px] file:mr-1 file:py-1 file:px-2 file:rounded-lg file:border-0 file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+              </div>
+            </div>
+          </div>
+
+          <button id="btn-generate-wifi-qr" type="button" class="w-full py-3.5 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold rounded-xl shadow-md shadow-indigo-100 flex items-center justify-center space-x-2 transition-all transform active:scale-[0.99]">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0"></path>
+            </svg>
+            <span>生成 Wi-Fi 連線 QR Code</span>
+          </button>
+        </div>
+
+        <div class="lg:col-span-6 space-y-4">
+          <div id="print-area" class="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-md relative overflow-hidden">
+            <div class="absolute -right-16 -top-16 w-48 h-48 bg-gradient-to-br from-indigo-100/60 to-violet-100/30 rounded-full blur-2xl pointer-events-none"></div>
+
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
+              <div class="flex items-center space-x-2.5">
+                <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"></path>
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-sm font-bold text-slate-800">無線網絡 Wi-Fi 連線小卡</h3>
+                  <p class="text-xs text-slate-400">使用手機相機掃碼即可自動連線</p>
+                </div>
+              </div>
+              <span class="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg">訪客專用</span>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center gap-6 my-2">
+              <div class="p-3 bg-white border border-slate-200 rounded-2xl shadow-sm shrink-0">
+                <div id="wifi-qrcode-container" class="flex items-center justify-center"></div>
+                <div id="wifi-qrcode-placeholder" class="w-[180px] h-[180px] flex flex-col items-center justify-center text-slate-400 text-xs text-center p-3">
+                  <svg class="w-10 h-10 text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0"></path>
+                  </svg>
+                  輸入 SSID 後即可在此查看二維碼
+                </div>
+              </div>
+
+              <div class="flex-grow w-full space-y-3 text-left">
+                <div>
+                  <span class="text-xs font-medium text-slate-400 uppercase tracking-wider block">網絡名稱 (SSID)</span>
+                  <span id="card-wifi-ssid" class="text-lg font-extrabold text-slate-900 break-all select-all font-mono">尚未設定</span>
+                </div>
+                <div>
+                  <span class="text-xs font-medium text-slate-400 uppercase tracking-wider block">連線密碼</span>
+                  <div class="flex items-center space-x-2">
+                    <span id="card-wifi-password" class="text-base font-bold text-indigo-700 font-mono select-all">••••••••</span>
+                    <button id="btn-copy-wifi-pw" type="button" class="text-xs text-slate-500 hover:text-indigo-600 p-1 rounded" title="複製密碼">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                  <span>安全加密：<b id="card-wifi-type" class="font-semibold text-slate-700">WPA/WPA2</b></span>
+                  <span id="card-wifi-hidden-tag" class="hidden text-amber-600 font-medium">隱藏網絡</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-4 p-2.5 bg-indigo-50/70 rounded-xl text-center text-xs text-indigo-800 font-medium border border-indigo-100/80">
+              💡 iPhone / Android 只要開啟內建「相機」App 對準二維碼，畫面頂部便會出現「加入網絡」按鈕。
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 no-print">
+            <button id="btn-print-wifi-card" type="button" class="py-2.5 px-4 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 shadow-sm transition">
+              <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+              </svg>
+              <span>列印實體立牌小卡</span>
+            </button>
+            <button id="btn-download-wifi-qr" type="button" class="py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 shadow-sm transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+              </svg>
+              <span>下載 Wi-Fi QR Code</span>
+            </button>
+          </div>
+          <button id="btn-share-wifi-qr" type="button" class="w-full py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 shadow-sm transition no-print">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+            </svg>
+            <span>一鍵傳送此 Wi-Fi QR 圖片給朋友</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 模組 3: 歷史記錄 ================= -->
+    <section id="section-history" class="hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-4">
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-2xl font-bold text-slate-900">生成歷史記錄</h1>
+            <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-semibold">🔒 僅儲存於你的本機</span>
+          </div>
+          <p class="text-slate-500 text-xs sm:text-sm mt-1">
+            所有記錄只儲存在你目前這部電話或電腦的瀏覽器。當你把網站分享給其他人使用時，<b>別人絕對看不到你的本機記錄</b>，完全保障私隱。
+          </p>
+        </div>
+        <div class="flex items-center space-x-2 self-start sm:self-auto shrink-0">
+          <button id="btn-export-history" type="button" class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium rounded-lg border border-slate-300 transition flex items-center space-x-1">
+            <span>匯出備份</span>
+          </button>
+          <button id="btn-clear-history" type="button" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium rounded-lg border border-rose-200 transition flex items-center space-x-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+          </svg>
+          <span>清空所有記錄</span>
+          </button>
+        </div>
+      </div>
+      <div id="history-list" class="space-y-3"></div>
+      <div id="history-empty" class="text-center py-12 bg-white rounded-2xl border border-slate-200 p-8 space-y-3">
+        <div class="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <h4 class="text-sm font-semibold text-slate-700">目前尚無歷史記錄</h4>
+        <p class="text-xs text-slate-400">當您縮短網址或生成 Wi-Fi QR Code 時，資料會自動保留在此處。</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 浮動 Toast 提示通知組件 -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-16 opacity-0 transition-all duration-300 pointer-events-none flex items-center space-x-2.5 px-4 py-3 bg-slate-900 text-white rounded-xl shadow-xl text-sm border border-slate-800">
+    <span id="toast-icon" class="text-emerald-400">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+      </svg>
+    </span>
+    <span id="toast-message" class="font-medium">操作成功</span>
+  </div>
+
+  <!-- QR Code 檢視 Modal -->
+  <div id="modal-view-qr" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 id="modal-qr-title" class="text-sm font-bold text-slate-800">QR Code 放大預覽</h3>
+        <button id="btn-close-modal" type="button" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="p-4 bg-slate-50 rounded-xl flex items-center justify-center">
+        <div id="modal-qr-container"></div>
+      </div>
+      <p id="modal-qr-subtitle" class="text-xs text-slate-500 font-mono break-all"></p>
+      <div class="pt-2">
+        <button id="btn-modal-download" type="button" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition">
+          下載此 QR Code
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="bg-white border-t border-slate-200 mt-12 py-6 text-center text-xs text-slate-400">
+    <div class="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <p>QuickQR 萬能短網址 &amp; Wi-Fi 二維碼生成工具</p>
+      <p>純前端極速運算・保障資訊安全・無資料外流風險</p>
+    </div>
+  </footer>
+
+  <script>
+    const state = {
+      activeTab: 'url',
+      urlQRInstance: null,
+      wifiQRInstance: null,
+      modalQRInstance: null,
+      currentShortUrl: '',
+      currentOriginalUrl: '',
+      currentWifiData: null,
+      history: [],
+      urlLogoBase64: null,
+      wifiLogoBase64: null
+    };
+
+    const els = {
+      navUrl: document.getElementById('nav-btn-url'),
+      navWifi: document.getElementById('nav-btn-wifi'),
+      navHistory: document.getElementById('nav-btn-history'),
+      secUrl: document.getElementById('section-url'),
+      secWifi: document.getElementById('section-wifi'),
+      secHistory: document.getElementById('section-history'),
+      historyBadge: document.getElementById('history-badge'),
+
+      urlInput: document.getElementById('url-input'),
+      urlAlias: document.getElementById('url-alias'),
+      shortenerService: document.getElementById('shortener-service'),
+      urlError: document.getElementById('url-error'),
+      btnPasteUrl: document.getElementById('btn-paste-url'),
+      btnClearUrl: document.getElementById('btn-clear-url'),
+      btnShortenGenerate: document.getElementById('btn-shorten-generate'),
+      qrUrlColor: document.getElementById('qr-url-color'),
+      qrUrlColorLabel: document.getElementById('qr-url-color-label'),
+      qrUrlBg: document.getElementById('qr-url-bg'),
+      qrUrlBgLabel: document.getElementById('qr-url-bg-label'),
+      qrTargetType: document.getElementById('qr-target-type'),
+      urlLogoInput: document.getElementById('url-logo-input'),
+      urlQRContainer: document.getElementById('url-qrcode-container'),
+      urlQRPlaceholder: document.getElementById('url-qrcode-placeholder'),
+      urlResultBox: document.getElementById('url-result-box'),
+      shortenedLinkDisplay: document.getElementById('shortened-link-display'),
+      urlSavingsTag: document.getElementById('url-savings-tag'),
+      btnCopyShortUrl: document.getElementById('btn-copy-short-url'),
+      btnDownloadUrlQR: document.getElementById('btn-download-url-qr'),
+      btnTestShortUrl: document.getElementById('btn-test-short-url'),
+
+      wifiSsid: document.getElementById('wifi-ssid'),
+      wifiSsidError: document.getElementById('wifi-ssid-error'),
+      wifiPassword: document.getElementById('wifi-password'),
+      wifiPasswordGroup: document.getElementById('wifi-password-group'),
+      wifiHidden: document.getElementById('wifi-hidden'),
+      btnTogglePassword: document.getElementById('btn-toggle-password'),
+      eyeIcon: document.getElementById('eye-icon'),
+      wifiQrColor: document.getElementById('wifi-qr-color'),
+      wifiQrBg: document.getElementById('wifi-qr-bg'),
+      wifiLogoInput: document.getElementById('wifi-logo-input'),
+      btnGenerateWifiQR: document.getElementById('btn-generate-wifi-qr'),
+      wifiQRContainer: document.getElementById('wifi-qrcode-container'),
+      wifiQRPlaceholder: document.getElementById('wifi-qrcode-placeholder'),
+      cardWifiSsid: document.getElementById('card-wifi-ssid'),
+      cardWifiPassword: document.getElementById('card-wifi-password'),
+      cardWifiType: document.getElementById('card-wifi-type'),
+      cardWifiHiddenTag: document.getElementById('card-wifi-hidden-tag'),
+      btnCopyWifiPw: document.getElementById('btn-copy-wifi-pw'),
+      btnPrintWifiCard: document.getElementById('btn-print-wifi-card'),
+      btnDownloadWifiQR: document.getElementById('btn-download-wifi-qr'),
+
+      historyList: document.getElementById('history-list'),
+      historyEmpty: document.getElementById('history-empty'),
+      btnClearHistory: document.getElementById('btn-clear-history'),
+
+      toast: document.getElementById('toast'),
+      toastMessage: document.getElementById('toast-message'),
+      modalViewQR: document.getElementById('modal-view-qr'),
+      modalQRTitle: document.getElementById('modal-qr-title'),
+      modalQRSubtitle: document.getElementById('modal-qr-subtitle'),
+      modalQRContainer: document.getElementById('modal-qr-container'),
+      btnCloseModal: document.getElementById('btn-close-modal'),
+      btnModalDownload: document.getElementById('btn-modal-download')
+    };
+
+    function showToast(message) {
+      if (!els.toast || !els.toastMessage) return;
+      els.toastMessage.textContent = message;
+      els.toast.classList.remove('translate-y-16', 'opacity-0', 'pointer-events-none');
+      setTimeout(() => {
+        els.toast.classList.add('translate-y-16', 'opacity-0', 'pointer-events-none');
+      }, 3000);
+    }
+
+    function copyText(text, successMsg) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast(successMsg || '已複製到剪貼簿');
+        }).catch(err => {
+          fallbackCopyTextToClipboard(text, successMsg);
+        });
+      } else {
+        fallbackCopyTextToClipboard(text, successMsg);
+      }
+    }
+
+    function fallbackCopyTextToClipboard(text, successMsg) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.top = '0';
+      textarea.style.left = '0';
+      textarea.style.position = 'fixed';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast(successMsg || '已複製到剪貼簿');
+      } catch (err) {
+        showToast('複製失敗，請手動選取複製');
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    }
+
+    function handleImageUpload(e, callback) {
+      const file = e.target.files[0];
+      if (!file) return callback(null);
+      const reader = new FileReader();
+      reader.onload = (event) => callback(event.target.result);
+      reader.readAsDataURL(file);
+    }
+
+    function addLogoToCanvas(container, logoBase64) {
+      if (!logoBase64) return;
+      const canvas = container.querySelector('canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.onload = () => {
+        const logoSize = canvas.width * 0.25; // Logo 尺寸佔 25%
+        const x = (canvas.width - logoSize) / 2;
+        const y = (canvas.height - logoSize) / 2;
+        
+        // 繪製白色圓角底色以增強辨識度
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(x - 4, y - 4, logoSize + 8, logoSize + 8, 6);
+        } else {
+          ctx.fillRect(x - 4, y - 4, logoSize + 8, logoSize + 8);
+        }
+        ctx.fill();
+        
+        // 繪製圖示
+        ctx.drawImage(img, x, y, logoSize, logoSize);
+        
+        // 同步更新 img 標籤以便直接長按圖片儲存
+        const qrImg = container.querySelector('img');
+        if (qrImg) qrImg.src = canvas.toDataURL('image/png');
+      };
+      img.src = logoBase64;
+    }
+
+    function downloadQRCode(container, filename) {
+      if (!container) return;
+      const canvas = container.querySelector('canvas');
+      let dataUrl = '';
+      if (canvas) {
+        dataUrl = canvas.toDataURL('image/png');
+      } else {
+        const img = container.querySelector('img');
+        if (img && img.src) dataUrl = img.src;
+      }
+      if (!dataUrl) {
+        showToast('找不到二維碼圖片');
+        return;
+      }
+      const link = document.createElement('a');
+      link.download = filename || 'qrcode.png';
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('QR Code 已開始下載！');
+    }
+
+    function cleanUrl(rawUrl) {
+      let url = rawUrl.trim();
+      if (!url) return '';
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      return url;
+    }
+
+    function shortenWithJsonp(endpointBase, targetUrl, customAlias) {
+      return new Promise((resolve) => {
+        const cbName = 'jsonp_cb_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+        const script = document.createElement('script');
+        let timer = setTimeout(() => {
+          cleanup();
+          resolve(null);
+        }, 6500);
+
+        function cleanup() {
+          clearTimeout(timer);
+          delete window[cbName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+        }
+
+        window[cbName] = (data) => {
+          cleanup();
+          if (data && data.shorturl) {
+            resolve({ shortUrl: data.shorturl.replace(/^http:/i, 'https:') });
+          } else if (data && data.errormessage) {
+            resolve({ error: data.errormessage });
+          } else {
+            resolve(null);
+          }
+        };
+
+        let apiUrl = `${endpointBase}?format=json&callback=${cbName}&url=${encodeURIComponent(targetUrl)}`;
+        if (customAlias) {
+          apiUrl += `&shorturl=${encodeURIComponent(customAlias)}`;
+        }
+        script.src = apiUrl;
+        script.onerror = () => {
+          cleanup();
+          resolve(null);
+        };
+        document.body.appendChild(script);
+      });
+    }
+
+    function loadHistory() {
+      try {
+        const data = localStorage.getItem('quickqr_history');
+        if (data) state.history = JSON.parse(data);
+      } catch (e) {
+        state.history = [];
+      }
+      updateHistoryUI();
+    }
+
+    function saveHistory(item) {
+      state.history.unshift(item);
+      if (state.history.length > 40) state.history = state.history.slice(0, 40);
+      try {
+        localStorage.setItem('quickqr_history', JSON.stringify(state.history));
+      } catch (e) {}
+      updateHistoryUI();
+    }
+
+    function updateHistoryUI() {
+      if (!els.historyBadge) return;
+      els.historyBadge.textContent = state.history.length;
+      if (!els.historyList || !els.historyEmpty) return;
+
+      if (state.history.length === 0) {
+        els.historyList.innerHTML = '';
+        els.historyEmpty.classList.remove('hidden');
+        return;
+      }
+
+      els.historyEmpty.classList.add('hidden');
+      els.historyList.innerHTML = '';
+
+      state.history.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'p-4 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-300 transition';
+
+        const isUrl = item.type === 'url';
+        const typeBadge = isUrl
+          ? '<span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-md border border-indigo-200">網址</span>'
+          : '<span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-md border border-emerald-200">Wi-Fi</span>';
+
+        const titleText = isUrl ? item.shortUrl : item.ssid;
+        const subText = isUrl ? item.originalUrl : `密碼: ${item.password || '(無密碼)'} | 加密: ${item.auth}`;
+
+        row.innerHTML = `
+          <div class="flex items-start space-x-3 truncate">
+            <div class="pt-0.5">${typeBadge}</div>
+            <div class="truncate">
+              <h4 class="text-sm font-bold text-slate-800 truncate">${titleText}</h4>
+              <p class="text-xs text-slate-400 truncate mt-0.5">${subText}</p>
+              <span class="text-[10px] text-slate-400 mt-1 block">${new Date(item.timestamp).toLocaleString()}</span>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2 shrink-0 self-end sm:self-center">
+            <button data-action="view" data-index="${index}" class="px-2.5 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition flex items-center space-x-1">
+              <span>檢視 QR</span>
+            </button>
+            <button data-action="copy" data-index="${index}" class="px-2.5 py-1.5 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-medium transition flex items-center space-x-1">
+              <span>複製</span>
+            </button>
+            <button data-action="delete" data-index="${index}" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition" title="刪除此筆記錄">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+          </div>
+        `;
+        els.historyList.appendChild(row);
+      });
+    }
+
+    if (els.historyList) {
+      els.historyList.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        const action = btn.dataset.action;
+        const index = parseInt(btn.dataset.index, 10);
+        const item = state.history[index];
+        if (!item) return;
+
+        if (action === 'delete') {
+          state.history.splice(index, 1);
+          try { localStorage.setItem('quickqr_history', JSON.stringify(state.history)); } catch(err) {}
+          updateHistoryUI();
+          showToast('已刪除該筆記錄');
+        } else if (action === 'copy') {
+          if (item.type === 'url') copyText(item.shortUrl, '已複製短網址！');
+          else copyText(item.password || item.ssid, '已複製 Wi-Fi 密碼/名稱！');
+        } else if (action === 'view') {
+          openQRModal(item);
+        }
+      });
+    }
+
+    if (els.btnClearHistory) {
+      els.btnClearHistory.addEventListener('click', () => {
+        if (state.history.length === 0) {
+          showToast('目前沒有可清空的記錄');
+          return;
+        }
+        state.history = [];
+        try { localStorage.removeItem('quickqr_history'); } catch(e) {}
+        updateHistoryUI();
+        showToast('已清空所有歷史記錄');
+      });
+    }
+
+    function openQRModal(item) {
+      if (!els.modalViewQR) return;
+      els.modalQRContainer.innerHTML = '';
+      const textToEncode = item.type === 'url' ? item.shortUrl : item.qrString;
+      const title = item.type === 'url' ? '短網址 QR Code' : `Wi-Fi (${item.ssid}) QR Code`;
+      els.modalQRTitle.textContent = title;
+      els.modalQRSubtitle.textContent = textToEncode;
+
+      if (window.QRCode) {
+        new QRCode(els.modalQRContainer, {
+          text: textToEncode, width: 220, height: 220,
+          colorDark: '#0f172a', colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+      }
+      els.modalViewQR.classList.remove('hidden');
+    }
+
+    if (els.btnCloseModal) els.btnCloseModal.addEventListener('click', () => els.modalViewQR.classList.add('hidden'));
+    if (els.btnModalDownload) els.btnModalDownload.addEventListener('click', () => downloadQRCode(els.modalQRContainer, 'quickqr-code.png'));
+
+    function switchTab(tabId) {
+      state.activeTab = tabId;
+      const tabs = [
+        { id: 'url', btn: els.navUrl, sec: els.secUrl },
+        { id: 'wifi', btn: els.navWifi, sec: els.secWifi },
+        { id: 'history', btn: els.navHistory, sec: els.secHistory }
+      ];
+
+      tabs.forEach(t => {
+        if (t.id === tabId) {
+          t.sec.classList.remove('hidden');
+          t.btn.classList.add('text-indigo-700', 'bg-white', 'shadow-sm');
+          t.btn.classList.remove('text-slate-600');
+        } else {
+          t.sec.classList.add('hidden');
+          t.btn.classList.remove('text-indigo-700', 'bg-white', 'shadow-sm');
+          t.btn.classList.add('text-slate-600');
+        }
+      });
+    }
+
+    els.navUrl.addEventListener('click', () => switchTab('url'));
+    els.navWifi.addEventListener('click', () => switchTab('wifi'));
+    els.navHistory.addEventListener('click', () => switchTab('history'));
+
+    if (els.shortenerService) {
+      els.shortenerService.addEventListener('change', () => {
+        const val = els.shortenerService.value;
+        const prefixEl = document.getElementById('alias-domain-prefix');
+        if (prefixEl) {
+          if (val === 'isgd') prefixEl.textContent = 'is.gd/';
+          else if (val === 'vgd') prefixEl.textContent = 'v.gd/';
+          else if (val === 'tinyurl') prefixEl.textContent = 'tinyurl.com/';
+          else if (val === 'direct') prefixEl.textContent = '原網址直連';
+        }
+      });
+    }
+
+    if (els.btnPasteUrl) {
+      els.btnPasteUrl.addEventListener('click', async () => {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          try {
+            const text = await navigator.clipboard.readText();
+            if (text) { els.urlInput.value = text; showToast('已貼上剪貼簿網址'); }
+          } catch (e) { showToast('無法讀取剪貼簿，請直接手動貼上'); }
+        }
+      });
+    }
+
+    if (els.btnClearUrl) {
+      els.btnClearUrl.addEventListener('click', () => {
+        els.urlInput.value = ''; els.urlAlias.value = ''; els.urlError.classList.add('hidden');
+      });
+    }
+
+    if (els.qrUrlColor) els.qrUrlColor.addEventListener('input', (e) => { els.qrUrlColorLabel.textContent = e.target.value; if (state.currentShortUrl) renderUrlQRCode(); });
+    if (els.qrUrlBg) els.qrUrlBg.addEventListener('input', (e) => { els.qrUrlBgLabel.textContent = e.target.value; if (state.currentShortUrl) renderUrlQRCode(); });
+    if (els.qrTargetType) els.qrTargetType.addEventListener('change', () => { if (state.currentShortUrl) renderUrlQRCode(); });
+    
+    if (els.urlLogoInput) {
+      els.urlLogoInput.addEventListener('change', (e) => {
+        handleImageUpload(e, (base64) => {
+          state.urlLogoBase64 = base64;
+          if (state.currentShortUrl) renderUrlQRCode();
+        });
+      });
+    }
+
+    if (els.wifiQrColor) els.wifiQrColor.addEventListener('input', () => { if (state.currentWifiData) handleGenerateWifiQR(); });
+    if (els.wifiQrBg) els.wifiQrBg.addEventListener('input', () => { if (state.currentWifiData) handleGenerateWifiQR(); });
+    
+    if (els.wifiLogoInput) {
+      els.wifiLogoInput.addEventListener('change', (e) => {
+        handleImageUpload(e, (base64) => {
+          state.wifiLogoBase64 = base64;
+          if (state.currentWifiData) handleGenerateWifiQR();
+        });
+      });
+    }
+
+    async function handleShortenUrl() {
+      const rawUrl = els.urlInput.value;
+      const targetUrl = cleanUrl(rawUrl);
+
+      if (!targetUrl || !targetUrl.includes('.')) {
+        els.urlError.textContent = '請輸入有效的網址 (例如：https://example.com)';
+        els.urlError.classList.remove('hidden');
+        els.urlInput.focus();
+        return;
+      }
+      els.urlError.classList.add('hidden');
+
+      // 驗證自訂短網址代碼
+      const rawAlias = els.urlAlias.value.trim();
+      const customAlias = rawAlias.replace(/[^a-zA-Z0-9-_]/g, '');
+      if (rawAlias !== '' && customAlias.length < 5) {
+        els.urlError.textContent = '❌ 自訂代碼請至少輸入 5 個有效英數字元';
+        els.urlError.classList.remove('hidden');
+        els.urlAlias.focus();
+        return;
+      }
+
+      state.currentOriginalUrl = targetUrl;
+      const provider = els.shortenerService.value;
+
+      let generatedShortUrl = '';
+      let usedFallbackDirect = false;
+
+      els.btnShortenGenerate.disabled = true;
+      els.btnShortenGenerate.innerHTML = '<span>正在生成安全 HTTPS 短網址...</span>';
+
+      try {
+        if (provider === 'direct') {
+          generatedShortUrl = targetUrl;
+          usedFallbackDirect = true;
+        } else if (provider === 'isgd' || provider === 'vgd') {
+          const endpoint = provider === 'isgd' ? 'https://is.gd/create.php' : 'https://v.gd/create.php';
+          const res = await shortenWithJsonp(endpoint, targetUrl, customAlias);
+          
+          if (res && res.shortUrl) {
+            generatedShortUrl = res.shortUrl;
+          } else if (res && res.error) {
+            // 發生錯誤（通常是代碼已被使用）
+            if (customAlias) {
+              els.urlError.textContent = `❌ 自訂代碼失敗: 該代碼可能已被使用，請換一個 (${res.error})`;
+              els.urlError.classList.remove('hidden');
+              return; // 終止流程，讓用戶修改
+            } else {
+              els.urlError.textContent = `❌ 短網址生成失敗: ${res.error}`;
+              els.urlError.classList.remove('hidden');
+              return;
+            }
+          }
+        } else if (provider === 'tinyurl') {
+          try {
+            let apiUrl = `https://tinyurl.com/api-create.php?url=${encodeURIComponent(targetUrl)}`;
+            if (customAlias) apiUrl += `&alias=${encodeURIComponent(customAlias)}`;
+            const response = await fetch(apiUrl);
+            
+            if (response.ok) {
+              const short = await response.text();
+              if (short && short.startsWith('http')) generatedShortUrl = short.trim().replace(/^http:/i, 'https:');
+            } else if (customAlias) {
+              // 400 Bad Request 通常是因為別名已被使用
+              els.urlError.textContent = `❌ 自訂代碼失敗: 該代碼已被他人使用或格式無效`;
+              els.urlError.classList.remove('hidden');
+              return; // 終止流程
+            }
+          } catch (e) {
+            if (customAlias) {
+              els.urlError.textContent = `❌ 自訂代碼失敗: 網路錯誤或代碼無效`;
+              els.urlError.classList.remove('hidden');
+              return;
+            }
+          }
+          // 如果 TinyURL 完全失敗，且沒有要求自訂代碼，切換回 is.gd 備援
+          if (!generatedShortUrl && !customAlias) {
+            const fallbackRes = await shortenWithJsonp('https://is.gd/create.php', targetUrl, '');
+            if (fallbackRes && fallbackRes.shortUrl) generatedShortUrl = fallbackRes.shortUrl;
+          }
+        }
+      } finally {
+        els.btnShortenGenerate.disabled = false;
+        els.btnShortenGenerate.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg><span>一鍵縮短網址並生成 QR Code</span>`;
+      }
+
+      if (!generatedShortUrl) { generatedShortUrl = targetUrl; usedFallbackDirect = true; }
+
+      state.currentShortUrl = generatedShortUrl;
+      renderUrlQRCode();
+
+      els.shortenedLinkDisplay.textContent = generatedShortUrl;
+      els.shortenedLinkDisplay.href = generatedShortUrl;
+      
+      const originalLen = targetUrl.length;
+      const shortLen = generatedShortUrl.length;
+      const savings = Math.max(0, Math.round(((originalLen - shortLen) / originalLen) * 100));
+      els.urlSavingsTag.textContent = usedFallbackDirect ? '🔒 HTTPS 原網址直連' : (savings > 0 ? `🔒 HTTPS 安全短鏈・節省 ${savings}% 長度` : '🔒 HTTPS 安全短鏈');
+
+      els.urlResultBox.classList.remove('hidden');
+      els.urlQRPlaceholder.classList.add('hidden');
+
+      saveHistory({ type: 'url', originalUrl: targetUrl, shortUrl: generatedShortUrl, timestamp: Date.now() });
+      
+      showToast('網址已成功縮短並存入本機記錄！');
+    }
+
+    function renderUrlQRCode() {
+      if (!window.QRCode) return;
+      const textToEncode = els.qrTargetType.value === 'original' ? state.currentOriginalUrl : state.currentShortUrl;
+      if (!textToEncode) return;
+      els.urlQRContainer.innerHTML = '';
+      const colorDark = els.qrUrlColor.value || '#0f172a';
+      const colorLight = els.qrUrlBg.value || '#ffffff';
+      new QRCode(els.urlQRContainer, { text: textToEncode, width: 200, height: 200, colorDark: colorDark, colorLight: colorLight, correctLevel: QRCode.CorrectLevel.H });
+      
+      if (state.urlLogoBase64) {
+        setTimeout(() => addLogoToCanvas(els.urlQRContainer, state.urlLogoBase64), 50);
+      }
+    }
+
+    els.btnShortenGenerate.addEventListener('click', handleShortenUrl);
+    if (els.btnCopyShortUrl) els.btnCopyShortUrl.addEventListener('click', () => copyText(state.currentShortUrl, '已複製短網址至剪貼簿！'));
+    if (els.btnDownloadUrlQR) els.btnDownloadUrlQR.addEventListener('click', () => downloadQRCode(els.urlQRContainer, 'quickqr-shortlink.png'));
+    if (els.btnTestShortUrl) els.btnTestShortUrl.addEventListener('click', () => { if (state.currentOriginalUrl) { window.open(state.currentOriginalUrl, '_blank'); showToast('已開啟目標網址進行跳轉測試'); }});
+
+    function escapeWifiString(str) {
+      if (!str) return '';
+      return str.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/:/g, '\\:').replace(/,/g, '\\,').replace(/"/g, '\\"');
+    }
+
+    function getSelectedWifiAuth() {
+      const radio = document.querySelector('input[name="wifi-auth-type"]:checked');
+      return radio ? radio.value : 'WPA';
+    }
+
+    document.querySelectorAll('input[name="wifi-auth-type"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        const val = getSelectedWifiAuth();
+        if (val === 'nopass') {
+          els.wifiPasswordGroup.classList.add('hidden');
+          els.cardWifiPassword.textContent = '(無密碼)';
+        } else {
+          els.wifiPasswordGroup.classList.remove('hidden');
+          els.cardWifiPassword.textContent = els.wifiPassword.value ? '••••••••' : '未設定密碼';
+        }
+        els.cardWifiType.textContent = val === 'nopass' ? '開放網絡' : val;
+      });
+    });
+
+    if (els.btnTogglePassword) {
+      els.btnTogglePassword.addEventListener('click', () => {
+        const isPassword = els.wifiPassword.type === 'password';
+        els.wifiPassword.type = isPassword ? 'text' : 'password';
+        els.eyeIcon.innerHTML = isPassword
+          ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"></path>'
+          : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>';
+      });
+    }
+
+    function handleGenerateWifiQR() {
+      const ssid = els.wifiSsid.value.trim();
+      if (!ssid) { els.wifiSsidError.textContent = '請輸入 Wi-Fi 網絡名稱'; els.wifiSsidError.classList.remove('hidden'); els.wifiSsid.focus(); return; }
+      els.wifiSsidError.classList.add('hidden');
+
+      const auth = getSelectedWifiAuth();
+      const password = els.wifiPassword.value;
+      const isHidden = els.wifiHidden.checked;
+
+      let qrString = `WIFI:S:${escapeWifiString(ssid)};T:${auth};`;
+      if (auth !== 'nopass') qrString += `P:${escapeWifiString(password)};`;
+      if (isHidden) qrString += 'H:true;';
+      qrString += ';';
+
+      els.wifiQRContainer.innerHTML = '';
+      const colorDark = els.wifiQrColor ? els.wifiQrColor.value : '#0f172a';
+      const colorLight = els.wifiQrBg ? els.wifiQrBg.value : '#ffffff';
+      
+      if (window.QRCode) {
+        new QRCode(els.wifiQRContainer, { text: qrString, width: 180, height: 180, colorDark: colorDark, colorLight: colorLight, correctLevel: QRCode.CorrectLevel.H });
+        if (state.wifiLogoBase64) {
+          setTimeout(() => addLogoToCanvas(els.wifiQRContainer, state.wifiLogoBase64), 50);
+        }
+      }
+
+      els.wifiQRPlaceholder.classList.add('hidden');
+      els.cardWifiSsid.textContent = ssid;
+      els.cardWifiPassword.textContent = auth === 'nopass' ? '(無密碼)' : (password || '(空白)');
+      els.cardWifiType.textContent = auth === 'nopass' ? '開放網絡 (無密碼)' : (auth === 'WPA' ? 'WPA/WPA2/WPA3' : 'WEP');
+      
+      if (isHidden) els.cardWifiHiddenTag.classList.remove('hidden');
+      else els.cardWifiHiddenTag.classList.add('hidden');
+
+      state.currentWifiData = { ssid, auth, password, isHidden, qrString };
+      saveHistory({ type: 'wifi', ssid, auth, password, qrString, timestamp: Date.now() });
+      showToast('Wi-Fi QR Code 已生成並存入本機記錄！');
+    }
+
+    els.btnGenerateWifiQR.addEventListener('click', handleGenerateWifiQR);
+    if (els.btnCopyWifiPw) els.btnCopyWifiPw.addEventListener('click', () => { const pw = els.wifiPassword.value; if (!pw && getSelectedWifiAuth() !== 'nopass') return showToast('尚未輸入密碼'); copyText(pw || '無密碼', '已複製 Wi-Fi 密碼'); });
+    if (els.btnDownloadWifiQR) els.btnDownloadWifiQR.addEventListener('click', () => downloadQRCode(els.wifiQRContainer, `${els.wifiSsid.value.trim() || 'wifi'}-qr.png`));
+    if (els.btnPrintWifiCard) els.btnPrintWifiCard.addEventListener('click', () => { if (!state.currentWifiData) handleGenerateWifiQR(); window.print(); });
+
+    async function shareQRCard(container, title, text, urlToShare) {
+      const canvas = container ? container.querySelector('canvas') : null;
+      if (navigator.share) {
+        try {
+          if (canvas && navigator.canShare) {
+            const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+            if (blob) {
+              const file = new File([blob], 'qrcode.png', { type: 'image/png' });
+              if (navigator.canShare({ files: [file] })) {
+                await navigator.share({ title, text, files: [file] });
+                return showToast('已開啟系統分享選單！');
+              }
+            }
+          }
+          await navigator.share({ title, text, url: urlToShare || window.location.href });
+          return showToast('已開啟系統分享選單！');
+        } catch (err) { if (err && err.name === 'AbortError') return; }
+      }
+      copyText(urlToShare || text, '已複製分享內容至剪貼簿，可直接貼給朋友！');
+    }
+
+    const btnShareUrlQR = document.getElementById('btn-share-url-qr');
+    const btnShareWifiQR = document.getElementById('btn-share-wifi-qr');
+    const btnExportHistory = document.getElementById('btn-export-history');
+
+    if (btnShareUrlQR) btnShareUrlQR.addEventListener('click', () => { if (state.currentShortUrl) shareQRCard(els.urlQRContainer, '短網址與 QR Code', `縮短網址：${state.currentShortUrl}`, state.currentShortUrl); });
+    if (btnShareWifiQR) btnShareWifiQR.addEventListener('click', () => { if (state.currentWifiData) shareQRCard(els.wifiQRContainer, 'Wi-Fi 連線 QR Code', `掃描此 QR Code 即可自動連線至 Wi-Fi：${state.currentWifiData.ssid}`); });
+    if (btnExportHistory) {
+      btnExportHistory.addEventListener('click', () => {
+        if (state.history.length === 0) return showToast('目前沒有記錄可匯出');
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.history, null, 2));
+        const a = document.createElement('a'); a.setAttribute("href", dataStr); a.setAttribute("download", "quickqr_history.json");
+        document.body.appendChild(a); a.click(); a.remove();
+        showToast('已成功下載歷史記錄備份！');
+      });
+    }
+
+    loadHistory();
+  </script>
+</body>
+</html>
