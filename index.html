@@ -79,7 +79,7 @@
       <!-- 左側 8 欄：類型選擇 + 步驟 1 + 步驟 2 -->
       <div class="lg:col-span-8 space-y-6">
 
-        <!-- 頂部類型選擇面板（對標截圖按鈕欄） -->
+        <!-- 頂部類型選擇面板 -->
         <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs">
           <div class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-5 gap-2.5" id="type-selector-group">
             <button data-type="link" class="type-btn flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-xl border border-emerald-500 bg-emerald-50 text-emerald-700 font-semibold text-xs transition shadow-2xs">
@@ -142,22 +142,6 @@
                   <button id="btn-paste-link" type="button" class="px-2 py-1 text-xs text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg">貼上</button>
                   <button id="btn-clear-link" type="button" class="px-2 py-1 text-xs text-slate-400 hover:text-slate-600 rounded-lg">清空</button>
                 </div>
-              </div>
-            </div>
-
-            <!-- 短網址輔助列 -->
-            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-              <div class="flex items-center space-x-2">
-                <input type="checkbox" id="chk-use-shorturl" class="rounded-sm border-slate-300 text-emerald-600 focus:ring-emerald-500">
-                <label for="chk-use-shorturl" class="font-medium text-slate-700 cursor-pointer">啟用真實短網址縮短（點陣更簡化）</label>
-              </div>
-              <div id="shorturl-options" class="hidden flex items-center space-x-2">
-                <select id="shortener-service-select" class="px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs">
-                  <option value="vgd">v.gd (推薦)</option>
-                  <option value="isgd">is.gd</option>
-                  <option value="tinyurl">TinyURL</option>
-                </select>
-                <input type="text" id="shorturl-alias" placeholder="自訂短代碼 (選填)" class="w-32 px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs">
               </div>
             </div>
           </div>
@@ -327,7 +311,7 @@
 
       </div>
 
-      <!-- 右側 4 欄：步驟 3 Download QR Code（對標截圖右側面板） -->
+      <!-- 右側 4 欄：步驟 3 Download QR Code -->
       <div class="lg:col-span-4 space-y-4 lg:sticky lg:top-24">
         <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-xs flex flex-col items-center text-center">
           
@@ -349,15 +333,7 @@
           <!-- 隱藏的 QRCode.js 生成節點 (供 Canvas 提取圖像用) -->
           <div id="raw-qrcode-buffer" class="hidden"></div>
 
-          <!-- 短網址解析結果展示區 (若有縮短) -->
-          <div id="short-link-badge-box" class="w-full mt-3 text-left hidden p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 text-xs">
-            <div class="flex items-center justify-between">
-              <span class="text-[11px] text-emerald-800 font-semibold truncate" id="display-short-url">https://v.gd/xxxx</span>
-              <button id="btn-copy-short-display" class="shrink-0 text-emerald-700 font-bold hover:underline ml-2">複製</button>
-            </div>
-          </div>
-
-          <!-- 下載按鈕 (對標截圖綠底按鈕樣式) -->
+          <!-- 下載按鈕 -->
           <div class="w-full space-y-2 mt-4">
             <button id="btn-download-final-qr" type="button" class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition flex items-center justify-center space-x-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
@@ -530,14 +506,6 @@
       renderCanvasQR();
     });
 
-    // 短網址選項顯隱
-    document.getElementById('chk-use-shorturl').addEventListener('change', (e) => {
-      const opt = document.getElementById('shorturl-options');
-      if (e.target.checked) opt.classList.remove('hidden');
-      else opt.classList.add('hidden');
-      triggerRebuildQR();
-    });
-
     // 內容變更觸發
     ['input-link-url', 'input-text-val', 'wifi-field-ssid', 'wifi-field-pw', 'email-to', 'email-sub', 'generic-input'].forEach(id => {
       const el = document.getElementById(id);
@@ -581,24 +549,8 @@
     let rebuildTimer = null;
     function triggerRebuildQR() {
       clearTimeout(rebuildTimer);
-      rebuildTimer = setTimeout(async () => {
+      rebuildTimer = setTimeout(() => {
         let text = computeStringToEncode();
-        const useShort = document.getElementById('chk-use-shorturl').checked;
-
-        if (appState.activeType === 'link' && useShort && text.startsWith('http') && text.length > 10) {
-          const service = document.getElementById('shortener-service-select').value;
-          const alias = document.getElementById('shorturl-alias').value.trim();
-          const endpoint = service === 'isgd' ? 'https://is.gd/create.php' : 'https://v.gd/create.php';
-          const shortRes = await shortenWithJsonp(endpoint, text, alias);
-          if (shortRes && shortRes.shortUrl) {
-            text = shortRes.shortUrl;
-            document.getElementById('short-link-badge-box').classList.remove('hidden');
-            document.getElementById('display-short-url').textContent = text;
-          }
-        } else {
-          document.getElementById('short-link-badge-box').classList.add('hidden');
-        }
-
         appState.currentTextToEncode = text;
         buildRawQRCode(text);
       }, 250);
@@ -711,32 +663,6 @@
       }
     }
 
-    function shortenWithJsonp(endpointBase, targetUrl, customAlias) {
-      return new Promise((resolve) => {
-        const cbName = 'jsonp_cb_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
-        const script = document.createElement('script');
-        let timer = setTimeout(() => { cleanup(); resolve(null); }, 4500);
-
-        function cleanup() {
-          clearTimeout(timer);
-          delete window[cbName];
-          if (script.parentNode) script.parentNode.removeChild(script);
-        }
-
-        window[cbName] = (data) => {
-          cleanup();
-          if (data && data.shorturl) resolve({ shortUrl: data.shorturl.replace(/^http:/i, 'https:') });
-          else resolve(null);
-        };
-
-        let apiUrl = `${endpointBase}?format=json&callback=${cbName}&url=${encodeURIComponent(targetUrl)}`;
-        if (customAlias) apiUrl += `&shorturl=${encodeURIComponent(customAlias)}`;
-        script.src = apiUrl;
-        script.onerror = () => { cleanup(); resolve(null); };
-        document.body.appendChild(script);
-      });
-    }
-
     // 下載按鈕處理
     document.getElementById('btn-download-final-qr').addEventListener('click', () => {
       const link = document.createElement('a');
@@ -750,11 +676,6 @@
         text: appState.currentTextToEncode,
         time: Date.now()
       });
-    });
-
-    // 複製短網址
-    document.getElementById('btn-copy-short-display').addEventListener('click', () => {
-      navigator.clipboard.writeText(appState.currentTextToEncode).then(() => showToast('已複製短網址！'));
     });
 
     // 貼上與清空
